@@ -242,24 +242,9 @@ namespace Graphical_Backup_Program
         /// True if the user's choice did not cause an issue<para/>
         /// False if there was an issue processing the user's choice
         /// </returns>
-        private bool ClearFolder()
+        private bool ClearFolder(string dir)
         {
-			string dir;
-
-			if (path1Btn.Checked && path1TextBox.Text != String.Empty)
-            {
-                dir = path1TextBox.Text;
-            }
-
-            else if (path2Btn.Checked && path2TextBox.Text != String.Empty)
-            {
-                dir = path2TextBox.Text;
-            }
-
-            else return true;
-
-
-			switch (MessageBox.Show($"Would you like to delete all of the contents of {dir} before backing up?", "Delete backup folder before?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question))
+            switch (MessageBox.Show($"Would you like to delete all of the contents of {dir} before backing up?", "Delete backup folder before?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question))
 			{
                 case DialogResult.Yes:
 					return DeleteDirectory(dir);
@@ -329,7 +314,7 @@ namespace Graphical_Backup_Program
         /// <summary>
         /// Updates progress bar based on size of backup folder against the size of the folder to be backed up
         /// </summary>
-        /// <param name="backupPath"></param>
+        /// <param name="backupPath">The destination path of the backup</param>
         private void RunProgressBar(string backupPath)
         {
             double currentSize = 0;
@@ -365,8 +350,22 @@ namespace Graphical_Backup_Program
         private void BackupBtn_Click(object sender, EventArgs e)
         {
             File.WriteAllText(pathsFilePath, pathsTextBox.Text);
+            string BackupDest;
+
+            if (path1Btn.Checked && path1TextBox.Text != String.Empty)
+            {
+                BackupDest = path1TextBox.Text;
+            }
+
+            else if (path2Btn.Checked && path2TextBox.Text != String.Empty)
+            {
+                BackupDest = path2TextBox.Text;
+            }
+
+            else throw new Exception("Unable to get backup destination path");
+
             //TODO: Make sure the destination path textbox that is selected is a valid location before enabling the Backup button
-            if (!ClearFolder()) //If user selected cancel, or there was an issue processing the user's choice, cancel the backup operation
+            if (!ClearFolder(BackupDest)) //If user selected cancel, or there was an issue processing the user's choice, cancel the backup operation
                 return;
 
             backupBtn.Enabled = false;
@@ -375,49 +374,36 @@ namespace Graphical_Backup_Program
             logText = "GBP Backup " + timestamp + "\n" + dividerLine;
             stripLabel.Text = "Backing up...";
 
-            List<string> allPaths = pathsTextBox.Text.Split("\r\n").ToList();
             List<Thread> threads = new();
 
             //for each line in the big Paths textbox, get rid of the prepending group number on the line, and call CopyBackupPath
-            foreach (string path in allPaths)
+            foreach (string srcPath in pathsTextBox.Text.Split("\r\n").ToList())
             {
-                if (path == String.Empty) continue;
+                if (srcPath == String.Empty) continue;
 
-                string trimmedPath = path.Trim();
-                char group = trimmedPath[0];
-                trimmedPath = trimmedPath[2..];
+                string trimmedSourcePath = srcPath.Trim();
+                char group = trimmedSourcePath[0];
+                trimmedSourcePath = trimmedSourcePath[2..];
 
                 if (ValidGroupChar(group))
                 {
                     if (GroupChecked(group))
                     {
-                        Thread t = new(() => CopyBackupPath(trimmedPath));
+                        Thread t = new(() => CopyBackupPath(trimmedSourcePath));
                         t.Start();
                         threads.Add(t);
                     }
                 }
-                else if (Char.ToLower(path[0]) != '#') //# are used for comments
-                    LogAppend($"\r\nGBP cannot understand this line: \"{path}\"\r\n");
+
+                else if (Char.ToLower(srcPath[0]) != '#') //# are used for comments
+                    LogAppend($"\r\nGBP cannot understand this line: \"{srcPath}\"\r\n");
             }
 
-            if (path1Btn.Checked && path1TextBox.Text != String.Empty)
-            {
-                if (!Directory.Exists(Path.Combine(path1TextBox.Text, "GBP Backup " + timestamp)))
-                    Directory.CreateDirectory(Path.Combine(path1TextBox.Text, "GBP Backup " + timestamp));
-            }
-            else if (path2Btn.Checked && path2TextBox.Text != String.Empty)
-            {
-                if (!Directory.Exists(Path.Combine(path2TextBox.Text, "GBP Backup " + timestamp)))
-                    Directory.CreateDirectory(Path.Combine(path2TextBox.Text, "GBP Backup " + timestamp));
-            }
+            //Create destination folder if it doesn't exist
+            if (!Directory.Exists(Path.Combine(BackupDest, "GBP Backup " + timestamp)))
+                Directory.CreateDirectory(Path.Combine(BackupDest, "GBP Backup " + timestamp));
 
-            string backupPath = "";
-            if (path1Btn.Checked && path1TextBox.Text != "")
-                backupPath = path1TextBox.Text;
-            else if (path2Btn.Checked && path2TextBox.Text != "")
-                backupPath = path2TextBox.Text;
-
-            Thread pThread = new(() => { progressBar.BeginInvoke(new Action(() => { RunProgressBar(backupPath); })); });
+            Thread pThread = new(() => { progressBar.BeginInvoke(new Action(() => { RunProgressBar(BackupDest); })); });
             pThread.Start();
 
             //This kind stranger's answer from long ago is how I finally got this stupid damn progress bar working after so, so very many hours... https://stackoverflow.com/a/1239662
