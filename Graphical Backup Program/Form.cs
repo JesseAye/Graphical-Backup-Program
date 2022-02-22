@@ -105,16 +105,27 @@ namespace Graphical_Backup_Program
                 {
                     File.Copy(src, finalDest);
                 }
+
                 catch (DirectoryNotFoundException e)
                 {
                     LogAppend("ERROR when trying to copy file " + src + "\r\nCould not find path. Did you enter the path correctly?\r\n" + e.Message + Environment.NewLine);
                     return;
                 }
+
                 catch (IOException e)
                 {
-                    LogAppend("ERROR when trying to copy file " + src + "\r\nMost likely the path already exists\r\n" + e.Message + Environment.NewLine);
+					if (e.Message.Contains("being used by another process."))
+					{
+                        //TODO: Figure out how to handle files/folders being used by another process
+                    }
+
+					else
+                    {
+                        LogAppend("ERROR when trying to copy file " + src + "\r\nMost likely the path already exists\r\n" + e.Message + Environment.NewLine);
+                    }
                     return;
                 }
+
                 catch (Exception e)
                 {
                     LogAppend("ERROR: " + e.Message);
@@ -125,6 +136,7 @@ namespace Graphical_Backup_Program
                 else
                     LogAppend("\r\nERROR. File " + src + " was NOT successfully copied to path" + pathNum + "\r\n");
             }
+
             else //if a folder
             {
                 //Get the name of the folder and copy stuff there. CopyDirectory() doesn't do that automatically for some reason... https://stackoverflow.com/a/5229311
@@ -138,16 +150,19 @@ namespace Graphical_Backup_Program
                 {
                     FileSystem.CopyDirectory(src, fullPath); //https://docs.microsoft.com/en-us/dotnet/api/microsoft.visualbasic.fileio.filesystem.copydirectory?view=net-5.0
                 }
+
                 catch (DirectoryNotFoundException e)
                 {
                     LogAppend("ERROR when trying to copy folder " + src + "\r\nCould not find path. Did you enter the path correctly?\r\n" + e.Message + Environment.NewLine);
                     return;
                 }
+
                 catch (IOException e)
                 {
                     LogAppend("ERROR when trying to copy folder " + src + "\r\nMost likely the path already exists\r\n\r\n" + e.Message + Environment.NewLine);
                     return;
                 }
+
                 catch (Exception e)
                 {
                     LogAppend("ERROR: " + e.Message);
@@ -195,69 +210,69 @@ namespace Graphical_Backup_Program
         /// <param name="dir">The directory to be deleted</param>
         /// <exception cref="UnauthorizedAccessException"/>
         /// <exception cref="DirectoryNotFoundException"/>
-        private static void DeleteDirectory(string dir)
+        private static bool DeleteDirectory(string dir)
         {
-            try
+			if (Directory.Exists(dir))
             {
-                Directory.Delete(dir, true);
+                try
+                {
+                    Directory.Delete(dir, true);
+                    return true;
+                }
+
+                catch (UnauthorizedAccessException e)
+                {
+                    MessageBox.Show("An error occurred: " + e.Message);
+                    return false;
+                }
             }
-            catch (UnauthorizedAccessException e)
-            {
-                MessageBox.Show("An error occurred: " + e.Message);
-            }
-            catch (DirectoryNotFoundException)
-            {
-                //Ignore error lol ;)
-            }
+
+			else
+			{
+                MessageBox.Show($"{dir} was not found! Unable to delete the backup destination folder! Stopping backup.", "Couldn't Delete Backup Folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+			}
         }
 
         /// <summary>
-        /// If either/both clear path(s) are true, call DeleteDirectory() to delete all files in that directory
-        /// </summary>
-        /// <param name="clrPath1">If files and folders in path 1 need to be deleted</param>
-        /// <param name="clrPath2">If files and folders in path 2 need to be deleted</param>
-        private void DeletePath1AndOr2(bool clrPath1, bool clrPath2)
-        {
-            if (clrPath1)
-                DeleteDirectory(path1TextBox.Text);
-            if (clrPath2)
-                DeleteDirectory(path2TextBox.Text);
-        }
-
-        /// <summary>
-        /// Prompts the user with Yes/No/Cancel MessageBox if they would like to delete the contents of the folder defined by whichever path TextBox is checked
+        /// Prompts the user with Yes/No/Cancel MessageBox if they would like to delete the contents of the folder defined by whichever path TextBox is checked<para/>
+        /// This is asked before backup is performed
         /// </summary>
         /// <returns>
-        /// True if the user accepted deletion of the contents of the folder before backup, or declined deletion before backup.<para/>
-        /// False if the user cancels the backup.
+        /// True if the user's choice did not cause an issue<para/>
+        /// False if there was an issue processing the user's choice
         /// </returns>
         private bool ClearFolder()
         {
-            //TODO: Rework the logic here. It is a bit redundant, and can probably be simplified.
-            bool clrPath1 = false, clrPath2 = false;
-            if (path1Btn.Checked && path1TextBox.Text != String.Empty) clrPath1 = true;
-            if (path2Btn.Checked && path2TextBox.Text != String.Empty) clrPath2 = true;
+			string dir;
 
-            string text = "", caption = "";
-            if (clrPath1)
+			if (path1Btn.Checked && path1TextBox.Text != String.Empty)
             {
-                text = $"Clear path1 ({path1TextBox.Text}) before backing up? This will delete all contents of \n{path1TextBox.Text}!!!";
-                caption = "Clear path1?";
-            }
-            else if (clrPath2)
-            {
-                text = $"Clear path2 ({path2TextBox.Text}) before backing up? This will delete all contents of {path2TextBox.Text}!!!";
-                caption = "Clear path2?";
+                dir = path1TextBox.Text;
             }
 
-            DialogResult dialogResult = MessageBox.Show(text, caption, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            else if (path2Btn.Checked && path2TextBox.Text != String.Empty)
+            {
+                dir = path2TextBox.Text;
+            }
 
-            if (dialogResult == DialogResult.Yes) //https://stackoverflow.com/a/3036851
-                DeletePath1AndOr2(clrPath1, clrPath2); //User confirmed that they do want to clear path1/2, so do it.
-            else if (dialogResult == DialogResult.Cancel)
-                return false; //Signify pressing 'cancel' button.
+            else return true;
 
-            return true; //True means no errors happened or whatever.
+
+			switch (MessageBox.Show($"Would you like to delete all of the contents of {dir} before backing up?", "Delete backup folder before?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question))
+			{
+                case DialogResult.Yes:
+					return DeleteDirectory(dir);
+
+				case DialogResult.No:
+                    return true;
+
+                case DialogResult.Cancel:
+                    return false;
+
+				default:
+                    throw new Exception("ClearFolder() DialogResult is not handled. Somehow it didn't return Yes/No/Cancel.");
+			}
         }
 
         /// <summary>
@@ -350,7 +365,8 @@ namespace Graphical_Backup_Program
         private void BackupBtn_Click(object sender, EventArgs e)
         {
             File.WriteAllText(pathsFilePath, pathsTextBox.Text);
-            if (ClearFolder() == false) //If user presses 'cancel' when asked if they want to clear, abort the entire process.
+            //TODO: Make sure the destination path textbox that is selected is a valid location before enabling the Backup button
+            if (!ClearFolder()) //If user selected cancel, or there was an issue processing the user's choice, cancel the backup operation
                 return;
 
             backupBtn.Enabled = false;
@@ -359,9 +375,10 @@ namespace Graphical_Backup_Program
             logText = "GBP Backup " + timestamp + "\n" + dividerLine;
             stripLabel.Text = "Backing up...";
 
-            string[] allPaths = pathsTextBox.Text.Split("\r\n");
+            List<string> allPaths = pathsTextBox.Text.Split("\r\n").ToList();
             List<Thread> threads = new();
 
+            //for each line in the big Paths textbox, get rid of the prepending group number on the line, and call CopyBackupPath
             foreach (string path in allPaths)
             {
                 if (path == String.Empty) continue;

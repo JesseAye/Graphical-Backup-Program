@@ -15,6 +15,9 @@ Graphical Backup Program/Paths.txt
 Graphical Backup Program/config.txt
 .vs/
 
+# Don't include CodeGraphData
+CodeGraphData/
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
