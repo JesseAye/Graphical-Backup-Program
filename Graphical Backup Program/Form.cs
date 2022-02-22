@@ -79,7 +79,10 @@ namespace Graphical_Backup_Program
 		/// <param name="pathNum"></param>
 		private void CopyAndLog(string src, string dest, int pathNum)
 		{
-			src = src.Trim(); //Remove pesky whitespace from start and end of path.
+			//TODO: Unable to protect this program from IOException when performing File.Copy() or FileSystem.CopyDirectory(), seems to happen on files with system Attribute.
+			//A major problem with .NET in regards to this project is the lack of ability to perform File/Directory copy and filter out system objects that will present access issues
+			//Recursive folder creation and File.Copy() is an answer, but we can run into StackOverflow depending on depth of folders:
+			//Ancestry issue & StackOverflow exception: https://www.codeproject.com/Tips/512208/Folder-Directory-Deep-Copy-including-sub-directori
 			dest = Path.Combine(dest, "GBP Backup " + timestamp);
 
 			if (Path.HasExtension(src)) //if a file
@@ -92,6 +95,8 @@ namespace Graphical_Backup_Program
 
 				try
 				{
+					//DirectoryInfo directoryInfo = new DirectoryInfo(src);
+					//var test = directoryInfo.GetNonSystemFileInfosRecursive("*");
 					File.Copy(src, finalDest);
 				}
 
@@ -105,7 +110,7 @@ namespace Graphical_Backup_Program
 				{
 					if (e.Message.Contains("being used by another process."))
 					{
-						//TODO: Figure out how to handle files/folders being used by another process
+						//TODO: Figure out how to handle files/folders being used by another process - This may be resolved by excluding system files/folders from being copied
 					}
 
 					else
@@ -137,6 +142,8 @@ namespace Graphical_Backup_Program
 
 				try
 				{
+					//DirectoryInfo directoryInfo = new DirectoryInfo(src);
+					//var test = directoryInfo.GetNonSystemFileInfosRecursive("*");
 					FileSystem.CopyDirectory(src, fullPath); //https://docs.microsoft.com/en-us/dotnet/api/microsoft.visualbasic.fileio.filesystem.copydirectory?view=net-5.0
 				}
 
@@ -458,8 +465,12 @@ namespace Graphical_Backup_Program
 				url = $"https://{url}";
 			}
 
-			//TODO: Possible malicious code execution point? are we parsing url well enough to prevent naughty commands?
-			Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
+			//I'm no injection/exploitation expert, but I've tried the following lines in the urlTextBox:
+			//google.com^&cd C:\^&tree
+			//^&cd C:\^&tree
+			//^&cd ..^&tree
+			//I can't get the process to follow through with the cd or the tree commands. Maybe it's safe?
+			Process.Start(new ProcessStartInfo($"{url}") { CreateNoWindow = true, UseShellExecute = true });
 		}
 
 		/// <summary>
@@ -865,6 +876,28 @@ namespace Graphical_Backup_Program
 			{
 				return Enumerable.Empty<FileInfo>();
 			}
+		}
+
+		/// <summary>
+		/// This is a hot mess, but I'm currently working on how to filter out files/folders with the System attribute
+		/// </summary>
+		/// <param name="di">Makes this method an extension of <![CDATA[IEnumerable<FileInfo>]]> so we can call it just like a built-in method</param>
+		/// <param name="searchPattern">The search pattern for which files need to be enumerated</param>
+		/// <returns></returns>
+		public static List<FileInfo> GetNonSystemFileInfosRecursive(this DirectoryInfo di, string searchPattern)
+		{
+			IEnumerable<FileInfo> di_enumerated_files = di.EnumerateFiles(searchPattern)
+															.Where(file => !file.Attributes.HasFlag(FileAttributes.System));
+
+			IEnumerable<DirectoryInfo> di_enum_dirs_where = di.EnumerateDirectories()
+																.Where(dir => !dir.Attributes.HasFlag(FileAttributes.System));
+
+			IEnumerable<FileInfo> di_enum_dirs_where_select = di_enum_dirs_where
+																.SelectMany(recurse => recurse.GetNonSystemFileInfosRecursive(searchPattern));
+
+			IEnumerable<FileInfo> combined = di_enumerated_files.Concat(di_enum_dirs_where_select);
+
+			return combined.ToList();
 		}
 	}
 }
