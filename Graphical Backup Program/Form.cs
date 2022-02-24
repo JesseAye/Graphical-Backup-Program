@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -335,48 +334,59 @@ namespace Graphical_Backup_Program
 		/// </summary>
 		private void UpdateControls()
 		{
+			//TODO: Have a check in place to make sure pathsTextBox contains valid paths
+
 			if (pathsTextBox.Text == String.Empty)
 			{
 				stripLabel.Text = "Enter at least 1 path in the big TextBox that you want backed up.";
 				backupBtn.Enabled = false;
+				return;
 			}
 
-			//I don't like how long this is and how inefficient it seems.
-			else if (checkBox0.Checked == false && checkBox1.Checked == false && checkBox2.Checked == false && checkBox3.Checked == false && checkBox4.Checked == false && checkBox5.Checked == false && checkBox6.Checked == false && checkBox7.Checked == false && checkBox8.Checked == false && checkBox9.Checked == false)
+			//TODO: Create seperate thread that constantly checks value of the checkboxes and updates a private bool in this class?
+			if (checkBox0.Checked == false && checkBox1.Checked == false && checkBox2.Checked == false && checkBox3.Checked == false && checkBox4.Checked == false && checkBox5.Checked == false && checkBox6.Checked == false && checkBox7.Checked == false && checkBox8.Checked == false && checkBox9.Checked == false)
 			{
 				stripLabel.Text = "At least one group needs to be checked to begin backup";
 				backupBtn.Enabled = false;
+				return;
 			}
 
-			else if (path1Btn.Checked && path1TextBox.Text == "")
+			if (path1Btn.Checked)
 			{
-				stripLabel.Text = "Enter a backup path for path1";
-				backupBtn.Enabled = false;
+				if (path1TextBox.Text == "")
+				{
+					stripLabel.Text = "Enter a backup path for path1";
+					backupBtn.Enabled = false;
+					return;
+				}
+
+				else if (Path.HasExtension(path1TextBox.Text))
+				{
+					stripLabel.Text = "path1 cannot be a file!";
+					backupBtn.Enabled = false;
+					return;
+				}
 			}
 
 			else if (path2Btn.Checked && path2TextBox.Text == "")
 			{
-				stripLabel.Text = "Enter a backup path for path2";
-				backupBtn.Enabled = false;
+				if (path2TextBox.Text == "")
+				{
+					stripLabel.Text = "Enter a backup path for path2";
+					backupBtn.Enabled = false;
+					return;
+				}
+
+				else if (Path.HasExtension(path2TextBox.Text))
+				{
+					stripLabel.Text = "path2 cannot be a file!";
+					backupBtn.Enabled = false;
+					return;
+				}
 			}
 
-			else if (path1Btn.Checked && Path.HasExtension(path1TextBox.Text))
-			{
-				stripLabel.Text = "path1 cannot be a file!";
-				backupBtn.Enabled = false;
-			}
-
-			else if (path2Btn.Checked && Path.HasExtension(path2TextBox.Text))
-			{
-				stripLabel.Text = "path2 cannot be a file!";
-				backupBtn.Enabled = false;
-			}
-
-			else
-			{
-				stripLabel.Text = "Ready to begin backup";
-				backupBtn.Enabled = true;
-			}
+			stripLabel.Text = "Ready to begin backup";
+			backupBtn.Enabled = true;
 		}
 
 		#region Private Static Methods
@@ -526,6 +536,16 @@ namespace Graphical_Backup_Program
 		/// <param name="e"></param>
 		private void PathRadioBtn_CheckedChanged(object sender, EventArgs e)
 		{
+			if (path1Btn.Checked)
+			{
+
+			}
+
+			else if (path2Btn.Checked)
+			{
+
+			}
+
 			UpdateControls();
 		}
 
