@@ -16,29 +16,23 @@ namespace Graphical_Backup_Program
 		#region Private Fields
 
 		private string timestamp;
-		private string logText;
+
 		/// <summary>
 		/// Provides reference/context to which directory this program is running from. If debugger is attached, set directory to base project directory. Else, set it to regular filepath of exe<para/>
 		/// <see href="https://stackoverflow.com/questions/1343053/detecting-if-a-program-was-run-by-visual-studio-as-opposed-to-run-from-windows">Check if debugger is attached</see><para/>
 		/// <see href="https://stackoverflow.com/a/11882118">Setting the directory depending on context (debugging or standalone exe)</see>
 		/// </summary>
-		private string projectDirectory { get { return Debugger.IsAttached ? Directory.GetParent(Environment.CurrentDirectory)?.Parent?.Parent?.FullName : Environment.CurrentDirectory; } }
+		private static string ProjectDirectory { get { return Debugger.IsAttached ? Directory.GetParent(Environment.CurrentDirectory)?.Parent?.Parent?.FullName : Environment.CurrentDirectory; } }
+
 		/// <summary>
 		/// Reference to the config file location
 		/// </summary>
-		private string configFilePath { get { return projectDirectory + "/config.txt"; } }
+		private static string ConfigFilePath { get { return ProjectDirectory + "/config.txt"; } }
+
 		/// <summary>
 		/// Reference to the paths file location
 		/// </summary>
-		private string pathsFilePath { get { return projectDirectory + "/paths.txt"; } }
-		/// <summary>
-		/// Reference to the log file
-		/// </summary>
-		private string logFilePath { get { return projectDirectory + "/GBP.log"; } }
-		/// <summary>
-		/// Divider line for use in the log file
-		/// </summary>
-		private const string dividerLine = "---------------------------------------------------------------------------------------------------";
+		private static string PathsFilePath { get { return ProjectDirectory + "/paths.txt"; } }
 
 		#endregion
 
@@ -48,15 +42,6 @@ namespace Graphical_Backup_Program
 		public Form()
 		{
 			InitializeComponent();
-		}
-
-		/// <summary>
-		/// Append new text to the log
-		/// </summary>
-		/// <param name="text">The text to be appended</param>
-		private void LogAppend(string text)
-		{
-			logText += text;
 		}
 
 		/// <summary>
@@ -102,7 +87,7 @@ namespace Graphical_Backup_Program
 
 				catch (DirectoryNotFoundException e)
 				{
-					LogAppend("ERROR when trying to copy file " + src + "\r\nCould not find path. Did you enter the path correctly?\r\n" + e.Message + Environment.NewLine);
+					GBP_Log.Append("ERROR when trying to copy file " + src + "\r\nCould not find path. Did you enter the path correctly?\r\n" + e.Message + Environment.NewLine);
 					return;
 				}
 
@@ -115,20 +100,20 @@ namespace Graphical_Backup_Program
 
 					else
 					{
-						LogAppend("ERROR when trying to copy file " + src + "\r\nMost likely the path already exists\r\n" + e.Message + Environment.NewLine);
+						GBP_Log.Append("ERROR when trying to copy file " + src + "\r\nMost likely the path already exists\r\n" + e.Message + Environment.NewLine);
 					}
 					return;
 				}
 
 				catch (Exception e)
 				{
-					LogAppend("ERROR: " + e.Message);
+					GBP_Log.Append("ERROR: " + e.Message);
 				}
 
 				if (File.Exists(finalDest))
-					LogAppend("\r\nSuccessfully copied file " + src + " to path" + pathNum + "\r\n");
+					GBP_Log.Append("\r\nSuccessfully copied file " + src + " to path" + pathNum + "\r\n");
 				else
-					LogAppend("\r\nERROR. File " + src + " was NOT successfully copied to path" + pathNum + "\r\n");
+					GBP_Log.Append("\r\nERROR. File " + src + " was NOT successfully copied to path" + pathNum + "\r\n");
 			}
 
 			else //if a folder
@@ -149,25 +134,25 @@ namespace Graphical_Backup_Program
 
 				catch (DirectoryNotFoundException e)
 				{
-					LogAppend("ERROR when trying to copy folder " + src + "\r\nCould not find path. Did you enter the path correctly?\r\n" + e.Message + Environment.NewLine);
+					GBP_Log.Append("ERROR when trying to copy folder " + src + "\r\nCould not find path. Did you enter the path correctly?\r\n" + e.Message + Environment.NewLine);
 					return;
 				}
 
 				catch (IOException e)
 				{
-					LogAppend("ERROR when trying to copy folder " + src + "\r\nMost likely the path already exists\r\n\r\n" + e.Message + Environment.NewLine);
+					GBP_Log.Append("ERROR when trying to copy folder " + src + "\r\nMost likely the path already exists\r\n\r\n" + e.Message + Environment.NewLine);
 					return;
 				}
 
 				catch (Exception e)
 				{
-					LogAppend("ERROR: " + e.Message);
+					GBP_Log.Append("ERROR: " + e.Message);
 				}
 
 				if (Directory.Exists(fullPath))
-					LogAppend("\r\nSuccessfully copied folder " + src + " to path" + pathNum + "\r\n");
+					GBP_Log.Append("\r\nSuccessfully copied folder " + src + " to path" + pathNum + "\r\n");
 				else
-					LogAppend("\r\nERROR. Folder " + src + " was NOT successfully copied to path" + pathNum + "\r\n");
+					GBP_Log.Append("\r\nERROR. Folder " + src + " was NOT successfully copied to path" + pathNum + "\r\n");
 			}
 		}
 
@@ -185,7 +170,7 @@ namespace Graphical_Backup_Program
 					OpenInExplorer(zipCheckBox.Checked ? Path.Combine(path2TextBox.Text, "GBP Backup " + timestamp + ".zip") : Path.Combine(path2TextBox.Text, "GBP Backup " + timestamp));
 			}
 		}
-
+		
 		/// <summary>
 		/// Prompts the user with Yes/No/Cancel MessageBox if they would like to delete the contents of the folder defined by whichever path TextBox is checked<para/>
 		/// This is asked before backup is performed
@@ -194,7 +179,7 @@ namespace Graphical_Backup_Program
 		/// True if the user's choice did not cause an issue<para/>
 		/// False if there was an issue processing the user's choice
 		/// </returns>
-		private bool ClearFolder(string dir)
+		private static bool ClearFolder(string dir)
 		{
 			switch (MessageBox.Show($"Would you like to delete all of the contents of {dir} before backing up?", "Delete backup folder before?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question))
 			{
@@ -239,6 +224,8 @@ namespace Graphical_Backup_Program
 		{
 			double currentSize = 0;
 			double finalSize = UpdateBackupSize();
+
+			//TODO: There are instances where currentSize never reaches finalSize, causing a perpetually true while loop
 			while (currentSize < finalSize)
 			{
 				currentSize = GetFolderSize(Path.Combine(backupPath, "GBP Backup " + timestamp));
@@ -259,7 +246,7 @@ namespace Graphical_Backup_Program
 			string zipPath = Path.Combine(textBoxText, "GBP Backup " + timestamp + ".zip");
 			ZipFile.CreateFromDirectory(backupPath, zipPath);
 			if (File.Exists(zipPath))
-				LogAppend("\nSuccessfully compressed backup of path" + pathNum + '\n');
+				GBP_Log.Append("\nSuccessfully compressed backup of path" + pathNum + '\n');
 		}
 
 		/// <summary>
@@ -320,9 +307,9 @@ namespace Graphical_Backup_Program
 		/// </summary>
 		private void SaveToFiles()
 		{
-			File.WriteAllText(pathsFilePath, pathsTextBox.Text);
+			File.WriteAllText(PathsFilePath, pathsTextBox.Text);
 			string configFileText = checkBox0.Checked + "\r\n" + checkBox1.Checked + "\r\n" + checkBox2.Checked + "\r\n" + checkBox3.Checked + "\r\n" + checkBox4.Checked + "\r\n" + checkBox5.Checked + "\r\n" + checkBox6.Checked + "\r\n" + checkBox7.Checked + "\r\n" + checkBox8.Checked + "\r\n" + checkBox9.Checked + "\r\n" + textBox0.Text + "\r\n" + textBox1.Text + "\r\n" + textBox2.Text + "\r\n" + textBox3.Text + "\r\n" + textBox4.Text + "\r\n" + textBox5.Text + "\r\n" + textBox6.Text + "\r\n" + textBox7.Text + "\r\n" + textBox8.Text + "\r\n" + textBox9.Text + "\r\n" + path1Btn.Checked + "\r\n" + path1TextBox.Text + "\r\n" + path2Btn.Checked + "\r\n" + path2TextBox.Text + "\r\n" + openOnComplete.Checked + "\r\n" + urlCheckBox.Checked + "\r\n" + urlTextBox.Text + "\r\n" + zipCheckBox.Checked;
-			File.WriteAllText(configFilePath, configFileText);
+			File.WriteAllText(ConfigFilePath, configFileText);
 		}
 
 		/// <summary>
@@ -620,32 +607,26 @@ namespace Graphical_Backup_Program
 		/// <param name="e"></param>
 		private void Form_Shown(object sender, EventArgs e)
 		{
-			if (!File.Exists(pathsFilePath))
-				File.Create(pathsFilePath);
+			if (!File.Exists(PathsFilePath))
+				File.Create(PathsFilePath);
 			else
-				pathsTextBox.Text = File.ReadAllText(pathsFilePath);
+				pathsTextBox.Text = File.ReadAllText(PathsFilePath);
 
-			if (!File.Exists(configFilePath))
+			if (!File.Exists(ConfigFilePath))
 			{
-				FileStream file = File.Create(configFilePath);
-				file.Close();
-			}
-
-			if (!File.Exists(logFilePath))
-			{
-				FileStream file = File.Create(logFilePath);
+				FileStream file = File.Create(ConfigFilePath);
 				file.Close();
 			}
 
 			//TODO: Potentially convert the config file to XML for better usability/readability
 			//Read in config stuff. Is this extremely stupid and sub-optimal? Yes. Does it work? Also yes.
-			string configFileTxt = File.ReadAllText(configFilePath);
+			string configFileTxt = File.ReadAllText(ConfigFilePath);
 
 			//If config file has no text, write default values to file.
 			if (configFileTxt == String.Empty)
 			{
 				const string defaultConfigValues = "false\r\nfalse\r\nfalse\r\nfalse\r\nfalse\r\nfalse\r\nfalse\r\nfalse\r\nfalse\r\nfalse\r\nUse these for...\r\n...labeling groups\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\ntrue\r\n\r\nfalse\r\n\r\ntrue\r\nfalse\r\n\r\nfalse";
-				File.WriteAllText(configFilePath, defaultConfigValues);
+				File.WriteAllText(ConfigFilePath, defaultConfigValues);
 				configFileTxt = defaultConfigValues; //Process like normal, even though technically it didn't read anything in from the file.
 			}
 
@@ -731,7 +712,7 @@ namespace Graphical_Backup_Program
 		/// <param name="e"></param>
 		private void BackupBtn_Click(object sender, EventArgs e)
 		{
-			File.WriteAllText(pathsFilePath, pathsTextBox.Text);
+			File.WriteAllText(PathsFilePath, pathsTextBox.Text);
 			string BackupDest;
 
 			if (path1Btn.Checked && path1TextBox.Text != String.Empty)
@@ -753,7 +734,8 @@ namespace Graphical_Backup_Program
 			backupBtn.Enabled = false;
 			progressBar.Value = 0;
 			timestamp = DateTime.Now.ToString("M-d-yyyy hh;mm;ss tt"); //'/' and ':' won't work in paths because Windows.
-			logText = "GBP Backup " + timestamp + "\n" + dividerLine;
+			GBP_Log.Append("GBP Backup " + timestamp + "\n");
+			GBP_Log.AppendDivider();
 			stripLabel.Text = "Backing up...";
 
 			List<Thread> threads = new();
@@ -778,7 +760,7 @@ namespace Graphical_Backup_Program
 				}
 
 				else if (Char.ToLower(srcPath[0]) != '#') //# are used for comments
-					LogAppend($"\r\nGBP cannot understand this line: \"{srcPath}\"\r\n");
+					GBP_Log.Append($"\r\nGBP cannot understand this line: \"{srcPath}\"\r\n");
 			}
 
 			//Create destination folder if it doesn't exist
@@ -812,10 +794,9 @@ namespace Graphical_Backup_Program
 			ShowBackupPath();
 			backupBtn.Enabled = true;
 			stripLabel.Text = "Backup completed. Ready to exit or begin next backup.";
-			LogAppend(dividerLine);
+			GBP_Log.AppendDivider();
 
-			File.WriteAllText(logFilePath, logText);
-			Process.Start("notepad.exe", logFilePath); //Open log in Notepad.
+			Process.Start("notepad.exe", GBP_Log.FilePath); //Open log in Notepad.
 		}
 
 		/// <summary>
