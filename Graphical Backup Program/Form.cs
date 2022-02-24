@@ -33,6 +33,11 @@ namespace Graphical_Backup_Program
 		/// </summary>
 		private static string PathsFilePath { get { return ProjectDirectory + "/paths.txt"; } }
 
+		/// <summary>
+		/// If at least one of the groupCheckBoxes are checked
+		/// </summary>
+		private bool OneGroupIsChecked = false;
+
 		#endregion
 
 		/// <summary>
@@ -343,8 +348,7 @@ namespace Graphical_Backup_Program
 				return;
 			}
 
-			//TODO: Create seperate thread that constantly checks value of the checkboxes and updates a private bool in this class?
-			if (checkBox0.Checked == false && checkBox1.Checked == false && checkBox2.Checked == false && checkBox3.Checked == false && checkBox4.Checked == false && checkBox5.Checked == false && checkBox6.Checked == false && checkBox7.Checked == false && checkBox8.Checked == false && checkBox9.Checked == false)
+			if (!OneGroupIsChecked)
 			{
 				stripLabel.Text = "At least one group needs to be checked to begin backup";
 				backupBtn.Enabled = false;
@@ -525,6 +529,17 @@ namespace Graphical_Backup_Program
 		/// <param name="e"></param>
 		private void GroupCheckBoxes_CheckedChanged(object sender, EventArgs e)
 		{
+			OneGroupIsChecked = checkBox0.Checked
+					   || checkBox1.Checked
+					   || checkBox2.Checked
+					   || checkBox3.Checked
+					   || checkBox4.Checked
+					   || checkBox5.Checked
+					   || checkBox6.Checked
+					   || checkBox7.Checked
+					   || checkBox8.Checked
+					   || checkBox9.Checked;
+
 			UpdateControls();
 			UpdateBackupSize();
 		}
